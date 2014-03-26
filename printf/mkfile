@@ -1,0 +1,7 @@
+BIN = printf
+OBJ = printf.o
+INSTALL_BIN = printf
+INSTALL_MAN1 = printf.1
+DEPS = libcommon
+
+<$mkbuild/mk.default

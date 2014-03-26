@@ -1,0 +1,5 @@
+hbase is a collection of programs that complements sbase and ubase. It's meant
+to be a temporary project that will shrink and die once sbase and ubase gets
+implementations of most of the programs included. hbase mostly contains
+programs taken from the Heirloom project, but also has other programs, such as
+patch taken from FreeBSD/OpenBSD and mk taken from plan9port.

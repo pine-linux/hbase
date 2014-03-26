@@ -1,0 +1,8 @@
+BIN = ps
+OBJ = ps.o
+LOCAL_CFLAGS = -DDEFAULT=\"$DFLDIR/ps\" -DUCB
+INSTALL_BIN = ps
+INSTALL_MAN1 = ps.1b
+DEPS = libcommon
+
+<$mkbuild/mk.default

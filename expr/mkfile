@@ -1,0 +1,10 @@
+BIN = expr
+OBJ = expr.o
+LOCAL_CFLAGS = -DSU3
+INSTALL_BIN = expr
+INSTALL_MAN1 = expr.1
+CLEAN_FILES = expr.c
+DEPS = yacc libcommon
+
+<$mkbuild/mk.default
+

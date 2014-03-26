@@ -1,0 +1,4 @@
+TARG = libbio libutf libregexp libfmt mk
+
+<$mkbuild/mk.parent
+

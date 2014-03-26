@@ -1,0 +1,7 @@
+BIN = sed
+OBJ = sed0.o sed1.o version.o
+LOCAL_CFLAGS = -DSU3
+INSTALL_BIN = sed
+INSTALL_MAN1 = sed.1
+
+<$mkbuild/mk.default

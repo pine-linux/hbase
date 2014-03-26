@@ -1,0 +1,49 @@
+LIB = libfmt.a
+LOBJ = \
+	dofmt.o\
+	dorfmt.o\
+	errfmt.o\
+	fltfmt.o\
+	fmt.o\
+	fmtfd.o\
+	fmtfdflush.o\
+	fmtlocale.o\
+	fmtlock.o\
+	fmtnull.o\
+	fmtprint.o\
+	fmtquote.o\
+	fmtrune.o\
+	fmtstr.o\
+	fmtvprint.o\
+	fprint.o\
+	print.o\
+	runefmtstr.o\
+	runeseprint.o\
+	runesmprint.o\
+	runesnprint.o\
+	runesprint.o\
+	runevseprint.o\
+	runevsmprint.o\
+	runevsnprint.o\
+	seprint.o\
+	smprint.o\
+	snprint.o\
+	sprint.o\
+	strtod.o\
+	vfprint.o\
+	vseprint.o\
+	vsmprint.o\
+	vsnprint.o\
+	charstod.o\
+	pow10.o\
+	nan64.o
+
+LOCAL_CFLAGS = -I"$PREFIX"/include -I.
+CLEAN_FILES = test test.o
+DEPS = libutf
+
+<$mkbuild/mk.default
+
+test: deps $LIB test.o
+	$CC -o test test.o $LIB $CFLAGS $LDFLAGS $LOCAL_CFLAGS -L"$PREFIX"/lib -L../libutf -lutf
+

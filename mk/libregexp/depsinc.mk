@@ -1,0 +1,2 @@
+DEPS_CFLAGS = $DEPS_CFLAGS -I$libregexp_DEPDIR
+DEPS_LDFLAGS = $DEPS_LDFLAGS -L$libregexp_DEPDIR -lregexp9
