@@ -1,7 +1,7 @@
 BIN = sed
-OBJ = sed0.o sed1.o version.o
-LOCAL_CFLAGS = -DSU3
+OBJ = compile.o main.o misc.o process.o
 INSTALL_BIN = sed
 INSTALL_MAN1 = sed.1
+LOCAL_CFLAGS = -DDEFFILEMODE=0666 -DREG_STARTEND=REG_NEWLINE
 
 <$mkbuild/mk.default
