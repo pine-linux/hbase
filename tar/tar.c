@@ -377,7 +377,7 @@ static void	iput(struct islot *, struct islot **);
 static struct dslot	*dfind(struct dslot **, dev_t);
 static char	*sequence(void);
 static void	docomp(const char *);
-static int	jflag, zflag, Zflag;
+static int	jflag, Jflag, zflag, Zflag;
 static int	utf8(const char *);
 static void	settmp(char *, size_t, const char *);
 
@@ -525,16 +525,25 @@ main(int argc, char *argv[])
 		case 'z':
 			zflag = 1;
 			jflag = 0;
+			Jflag = 0;
 			Zflag = 0;
 			break;
 		case 'j':
 			jflag = 1;
+			Jflag = 0;
+			zflag = 0;
+			Zflag = 0;
+			break;
+		case 'J':
+			Jflag = 1;
+			jflag = 0;
 			zflag = 0;
 			Zflag = 0;
 			break;
 		case 'Z':
 			Zflag = 1;
 			jflag = 0;
+			Jflag = 0;
 			zflag = 0;
 			break;
 		default:
@@ -570,7 +579,7 @@ main(int argc, char *argv[])
 					progname);
 			done(1);
 		}
-		if (cflag == 0 && (jflag || zflag || Zflag)) {
+		if (cflag == 0 && (jflag || Jflag || zflag || Zflag)) {
 			fprintf(stderr, "%s: can only create "
 					"compressed archives\n",
 					progname);
@@ -594,8 +603,8 @@ main(int argc, char *argv[])
 			}
 		}
 		domtstat();
-		if (jflag || zflag || Zflag)
-			docomp(jflag ? "bzip2" : Zflag ? "compress" : "gzip");
+		if (jflag || Jflag || zflag || Zflag)
+			docomp(Jflag ? "xz" : jflag ? "bzip2" : Zflag ? "compress" : "gzip");
 		dorep(argv);
 	}
 	else if (xflag)  {
@@ -2763,6 +2772,9 @@ checkzip(const char *bp, int rd)
 			memcmp(&bp[257], "\0\0\0\0\0", 5))) {
 		if (bp[0] == 'B' && bp[1] == 'Z' && bp[2] == 'h')
 			return redirect("bzip2", "-cd", rd);
+		else if (bp[0] == 0xFD && bp[1] == '7' && bp[2] == 'z'
+				&& bp[3] == 'X' && bp[4] == 'Z' && bp[5] == 0x00)
+			return redirect("xz", "-cd", rd);
 		else if (bp[0] == '\37' && bp[1] == '\235')
 			return redirect("zcat", NULL, rd);
 		else if (bp[0] == '\37' && bp[1] == '\213')

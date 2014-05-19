@@ -349,8 +349,9 @@ once for each floppy disk.
 On archives compressed with
 .IR bzip2 (1),
 .IR compress (1),
-or
 .IR gzip (1),
+or
+.IR xz (1),
 the appropriate decompression program is run automatically
 with the
 .I t
@@ -374,6 +375,13 @@ Similar to
 .IR z ,
 but using
 .IR bzip2 (1)
+as compression program.
+.TP 10
+.B J
+Similar to
+.IR z ,
+but using
+.IR xz (1)
 as compression program.
 .TP 10
 .B Z
