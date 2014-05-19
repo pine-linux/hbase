@@ -1,3 +1,5 @@
+<$mkbuild/mk.default
+
 BIN = lex
 LIB = libl.a
 OBJ = main.o sub1.o sub2.o sub3.o header.o wcio.o parser.o getopt.o lsearch.o
@@ -13,8 +15,6 @@ DEPS = yacc
 
 WFLAGS = -DEUC -DJLSLEX -DWOPTION
 EFLAGS = -DEUC -DJLSLEX -DEOPTION
-
-<$mkbuild/mk.default
 
 %_w.o:Q: %.c
 	echo CC $target
