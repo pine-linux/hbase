@@ -1,9 +1,0 @@
-BIN = tar
-OBJ = tar.o
-LOCAL_CFLAGS = -DTARDFL=\"$DFLDIR/tar\" -DSHELL=\"$SHELL\" -DSV3BIN=\"$BINDIR\" -DDEFBIN=\"$BINDIR\"
-INSTALL_BIN = tar
-INSTALL_MAN1 = tar.1
-INSTALL_DFL = tar.dfl
-DEPS = libcommon
-
-<$mkbuild/mk.default
