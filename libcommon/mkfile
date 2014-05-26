@@ -8,17 +8,13 @@ LOBJ = asciitype.o ib_alloc.o ib_close.o ib_free.o ib_getlin.o ib_getw.o \
 TARG = CHECK
 CLEAN_FILES = alloca.h malloc.h utmpx.h
 
-<$mkbuild/mk.common
-
-libcommon.a:Q: headers $LOBJ
-	echo AR $target
-	$AR -rv $target $LOBJ
-	echo RANLIB $target
-	$RANLIB $target
+<$mkbuild/mk.default
 
 CHECK:Q: CHECK.c
 	echo CC CHECK
 	$CC $CFLAGS $CPPFLAGS -E CHECK.c >CHECK
+
+%.o: headers
 
 headers:Q: CHECK
 	one() {
