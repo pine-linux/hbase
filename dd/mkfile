@@ -1,7 +1,0 @@
-BIN = dd
-OBJ = dd.o
-INSTALL_BIN = dd
-INSTALL_MAN1 = dd.1
-DEPS = libcommon
-
-<$mkbuild/mk.default
