@@ -3,9 +3,7 @@ OBJ = bc.o
 LOCAL_CFLAGS = -DDC=\"$BINDIR/dc\" -DLIBB=\"$LIBDIR/lib.b\"
 CLEAN_FILES = bc.c
 INSTALL_BIN = bc
-INSTALL_LIB = lib.b
 INSTALL_MAN1 = bc.1
 DEPS = yacc
 
 <$mkbuild/mk.default
-
