@@ -11,8 +11,6 @@ LOCAL_CFLAGS = -DFORMPATH=\"$LIBDIR/lex\"
 CLEAN_FILES = parser.c
 INSTALL_BIN = lex
 INSTALL_MAN1 = lex.1
-INSTALL_OTHER1 = nceucform ncform nrform
-INSTALL_OTHER1_DIR = $LIBDIR/lex
 
 WFLAGS = -DEUC -DJLSLEX -DWOPTION
 EFLAGS = -DEUC -DJLSLEX -DEOPTION
@@ -24,4 +22,3 @@ EFLAGS = -DEUC -DJLSLEX -DEOPTION
 %_e.o:Q: %.c
 	echo CC $target
 	$CC -c $CFLAGS $CPPFLAGS $EFLAGS $prereq -o $target
-
