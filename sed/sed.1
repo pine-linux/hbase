@@ -1,552 +1,369 @@
-.\"	$OpenBSD: sed.1,v 1.36 2010/09/03 11:09:29 jmc Exp $
 .\"
-.\" Copyright (c) 1992, 1993
-.\"	The Regents of the University of California.  All rights reserved.
-.\"
-.\" This code is derived from software contributed to Berkeley by
-.\" the Institute of Electrical and Electronics Engineers, Inc.
+.\" Sccsid @(#)sed.1	1.19 (gritter) 1/24/05
+.\" Derived from sed(1), Unix 7th edition:
+.\" Copyright(C) Caldera International Inc. 2001-2002. All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
 .\" are met:
-.\" 1. Redistributions of source code must retain the above copyright
-.\"    notice, this list of conditions and the following disclaimer.
-.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"   Redistributions of source code and documentation must retain the
+.\"    above copyright notice, this list of conditions and the following
+.\"    disclaimer.
+.\"   Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 3. Neither the name of the University nor the names of its contributors
-.\"    may be used to endorse or promote products derived from this software
-.\"    without specific prior written permission.
+.\"   All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"      This product includes software developed or owned by Caldera
+.\"      International, Inc.
+.\"   Neither the name of Caldera International, Inc. nor the names of
+.\"    other contributors may be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
 .\"
-.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
-.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
-.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
-.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
-.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
-.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
-.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
-.\" SUCH DAMAGE.
-.\"
-.\"	from: @(#)sed.1	8.2 (Berkeley) 12/30/93
-.\"
-.Dd $Mdocdate: September 3 2010 $
-.Dt SED 1
-.Os
-.Sh NAME
-.Nm sed
-.Nd stream editor
-.Sh SYNOPSIS
-.Nm sed
-.Op Fl aEnru
-.Ar command
-.Op Ar
-.Nm sed
-.Op Fl aEnru
-.Op Fl e Ar command
-.Op Fl f Ar command_file
-.Op Ar
-.Sh DESCRIPTION
+.\" USE OF THE SOFTWARE PROVIDED FOR UNDER THIS LICENSE BY CALDERA
+.\" INTERNATIONAL, INC. AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED. IN NO EVENT SHALL CALDERA INTERNATIONAL, INC. BE
+.\" LIABLE FOR ANY DIRECT, INDIRECT INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+.\" BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+.\" WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+.\" OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+.\" EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.TH SED 1 "1/24/05" "Heirloom Toolchest" "User Commands"
+.SH NAME
+sed \- stream editor
+.SH SYNOPSIS
+\fBsed\fR [\fB\-n\fR] [\fB\-e\fI\ script\fR] [\fB\-f\fI\ sfile\fR]
+[\fIfile\fR\ .\ .\ .]
+.SH DESCRIPTION
+.I Sed
+copies the named
+.I files
+(standard input default) to the standard output,
+edited according to a script of commands.
 The
-.Nm
-utility reads the specified files, or the standard input if no files
-are specified, modifying the input as specified by a list of commands.
-The input is then written to the standard output.
-.Pp
-A single command may be specified as the first argument to
-.Nm sed .
-Multiple commands may be specified
-separated by newlines or semicolons,
-or by using the
-.Fl e
-or
-.Fl f
-options.
-All commands are applied to the input in the order they are specified
-regardless of their origin.
-.Pp
-The options are as follows:
-.Bl -tag -width Ds
-.It Fl a
-The files listed as parameters for the
-.Ql w
-functions are created (or truncated) before any processing begins,
-by default.
+.B \-f
+option causes the script to be taken from file
+.IR sfile ;
+these options accumulate.
+If there is just one
+.B \-e
+option and no
+.BR \-f 's,
+the flag
+.B \-e
+may be omitted.
 The
-.Fl a
-option causes
-.Nm
-to delay opening each file until a command containing the related
-.Ql w
-function is applied to a line of input.
-.It Fl E
-Interpret regular expressions using POSIX extended regular expression syntax.
-The default behaviour is to use POSIX basic regular expression syntax.
-.It Fl e Ar command
-Append the editing commands specified by the
-.Ar command
-argument
-to the list of commands.
-.It Fl f Ar command_file
-Append the editing commands found in the file
-.Ar command_file
-to the list of commands.
-The editing commands should each be listed on a separate line.
-.It Fl r
-An alias for
-.Fl E ,
-for compatibility with GNU sed.
-.It Fl n
-By default, each line of input is echoed to the standard output after
-all of the commands have been applied to it.
-The
-.Fl n
-option suppresses this behavior.
-.It Fl u
-Force output to be line buffered,
-printing each line as it becomes available.
-By default, output is line buffered when standard output is a terminal
-and block buffered otherwise.
-See
-.Xr setbuf 3
-for a more detailed explanation.
-.El
-.Pp
-The form of a
-.Nm
-command is as follows:
-.Pp
-.Dl [address[,address]]function[arguments]
-.Pp
-Whitespace may be inserted before the first address and the function
-portions of the command.
-.Pp
-Normally,
-.Nm
-cyclically copies a line of input, not including its terminating newline
-character, into a
-.Em pattern space ,
-(unless there is something left after a
-.Sq D
-function),
-applies all of the commands with addresses that select that pattern space,
-copies the pattern space to the standard output, appending a newline, and
-deletes the pattern space.
-.Pp
-Some of the functions use a
-.Em hold space
-to save all or part of the pattern space for subsequent retrieval.
-.Sh SED ADDRESSES
-An address is not required, but if specified must be a number (that counts
-input lines
-cumulatively across input files), a dollar character
-.Pq Ql $
-that addresses the last line of input, or a context address
-(which consists of a regular expression preceded and followed by a
-delimiter).
-.Pp
+.B \-n
+option suppresses the default output.
+.PP
+A script consists of editing commands, one per line,
+of the following form:
+.IP
+[address [, address] ] function [arguments]
+.PP
+In normal operation
+.I sed
+cyclically copies a line of input into a
+.I pattern space
+(unless there is something left after
+a `D' command),
+applies in sequence
+all commands whose
+.I addresses
+select that pattern space,
+and at the end of the script copies the pattern space
+to the standard output (except under
+.BR \-n )
+and deletes the pattern space.
+.PP
+An
+.I address
+is either a decimal number that counts
+input lines cumulatively across files, a `$' that
+addresses the last line of input, or a context address,
+`/regular expression/', in the style of
+.IR ed (1)
+modified thus:
+.IP
+The escape sequence `\en' matches a
+newline embedded in the pattern space.
+.IP
 A command line with no addresses selects every pattern space.
-.Pp
-A command line with one address selects all of the pattern spaces
-that match the address.
-.Pp
-A command line with two addresses selects the inclusive range from
-the first pattern space that matches the first address through the next
-pattern space that matches the second.
-(If the second address is a number less than or equal to the line number
-first selected, only that line is selected.)
-Starting at the first line following the selected range,
-.Nm
-starts looking again for the first address.
-.Pp
-Editing commands can be applied to non-selected pattern spaces by use
-of the exclamation character
-.Pq Ql \&!
-function.
-.Sh SED REGULAR EXPRESSIONS
-By default,
-.Nm
-regular expressions are basic regular expressions
-.Pq BREs .
-Extended regular expressions are supported using the
-.Fl E
+.IP
+A command line with
+one address selects each pattern space that matches the address.
+.IP
+A command line with
+two addresses selects the inclusive range from the first
+pattern space that matches the first address through
+the next pattern space that matches 
+the second.
+(If the second address is a number less than or equal
+to the line number first selected, only one
+line is selected.)
+Thereafter the process is repeated, looking again for the
+first address.
+.PP
+Editing commands can be applied only to non-selected pattern
+spaces by use of the negation function `!' (below).
+.PP
+Regular expressions are simple regular expressions with
+.BR /usr/5bin/sed ,
+and basic regular expressions with
+.BR /usr/5bin/posix/sed ,
+.BR /usr/5bin/posix2001/sed ,
 and
-.Fl r
-options.
-See
-.Xr re_format 7
-for more information on regular expressions.
-In addition,
-.Nm
-has the following two additions to BREs:
-.Pp
-.Bl -enum -compact
-.It
-In a context address, any character other than a backslash
-.Pq Ql \e
-or newline character may be used to delimit the regular expression.
-The opening delimiter should be preceded by a backslash
-unless it is a slash.
-Putting a backslash character before the delimiting character
-causes the character to be treated literally.
-For example, in the context address \exabc\exdefx, the RE delimiter
-is an
-.Sq x
-and the second
-.Sq x
-stands for itself, so that the regular expression is
-.Dq abcxdef .
-.Pp
-.It
-The escape sequence \en matches a newline character embedded in the
-pattern space.
-You can't, however, use a literal newline character in an address or
-in the substitute command.
-.El
-.Pp
-One special feature of
-.Nm
-regular expressions is that they can default to the last regular
-expression used.
-If a regular expression is empty, i.e., just the delimiter characters
-are specified, the last regular expression encountered is used instead.
-The last regular expression is defined as the last regular expression
-used as part of an address or substitute command, and at run-time, not
-compile-time.
-For example, the command
-.Dq /abc/s//XXX/
-will substitute
-.Dq XXX
-for the pattern
-.Dq abc .
-.Sh SED FUNCTIONS
-In the following list of commands, the maximum number of permissible
-addresses for each command is indicated by [0addr], [1addr], or [2addr],
-representing zero, one, or two addresses.
-.Pp
-The argument
-.Em text
-consists of one or more lines.
-To embed a newline in the text, precede it with a backslash.
-Other backslashes in text are deleted and the following character
-taken literally.
-.Pp
-The
-.Sq r
+.BR /usr/5bin/s42/sed .
+.PP
+In the following list of functions the 
+maximum number of permissible addresses
+for each function is indicated in parentheses.
+.PP
+An argument denoted
+.I text
+consists of one or more lines,
+all but the last of which end with `\e' to hide the
+newline.
+Backslashes in text are treated like backslashes
+in the replacement string of an `s' command.
+.PP
+An argument denoted
+.I rfile
+or
+.I wfile
+must terminate the command
+line.
+.B /usr/5bin/sed
 and
-.Sq w
-functions take an optional file parameter, which should be separated
-from the function letter by whitespace.
-Each file given as an argument to
-.Nm
-is created (or its contents truncated) before any input processing begins.
-.Pp
-The
-.Sq b ,
-.Sq r ,
-.Sq s ,
-.Sq t ,
-.Sq w ,
-.Sq y ,
-.Ql \&! ,
-and
-.Ql \&:
-functions all accept additional arguments.
-The following synopses indicate which arguments have to be separated from
-the function letters by whitespace characters.
-.Pp
-Two of the functions take a function-list.
-This is a list of
-.Nm
-functions separated by newlines, as follows:
-.Bd -literal -offset indent
-{ function
-  function
-  ...
-  function
-}
-.Ed
-.Pp
-The
-.Ql {
-can be preceded or followed by whitespace.
-The function can be preceded by whitespace as well.
-The terminating
-.Ql }
-must be preceded by a newline or optional whitespace.
-.Pp
-.Bl -tag -width "XXXXXXXX" -compact
-.It [2addr] Em function-list
-Execute
-.Em function-list
-only when the pattern space is selected.
-.Pp
-.It [1addr] Ns Em a Ns \e
-.It Em text
-.Pp
-Write
-.Em text
-to standard output immediately before each attempt to read a line of input,
-whether by executing the
-.Sq N
-function or by beginning a new cycle.
-.Pp
-.It [2addr] Ns Em b Ns [label]
-Branch to the
-.Sq \&:
-function with the specified label.
-If the label is not specified, branch to the end of the script.
-.Pp
-.It [2addr] Ns Em c Ns \e
-.It Em text
-.Pp
-Delete the pattern space.
-With 0 or 1 address or at the end of a 2-address range,
-.Em text
-is written to the standard output.
-.Pp
-.It [2addr] Ns Em d
-Delete the pattern space and start the next cycle.
-.Pp
-.It [2addr] Ns Em D
-Delete the initial segment of the pattern space through the first
-newline character and start the next cycle.
-.Pp
-.It [2addr] Ns Em g
-Replace the contents of the pattern space with the contents of the
-hold space.
-.Pp
-.It [2addr] Ns Em G
-Append a newline character followed by the contents of the hold space
-to the pattern space.
-.Pp
-.It [2addr] Ns Em h
-Replace the contents of the hold space with the contents of the
-pattern space.
-.Pp
-.It [2addr] Ns Em H
-Append a newline character followed by the contents of the pattern space
-to the hold space.
-.Pp
-.It [1addr] Ns Em i Ns \e
-.It Em text
-.Pp
-Write
-.Em text
-to the standard output.
-.Pp
-.It [2addr] Ns Em l
-(The letter ell.)
-Write the pattern space to the standard output in a visually unambiguous
-form.
-This form is as follows:
-.Pp
-.Bl -tag -width "carriage-returnXX" -offset indent -compact
-.It backslash
-\e\e
-.It alert
-\ea
-.It backspace
-\eb
-.It form-feed
-\ef
-.It carriage-return
-\er
-.It tab
-\et
-.It vertical tab
-\ev
-.El
-.Pp
-Non-printable characters are written as three-digit octal numbers (with a
-preceding backslash) for each byte in the character (most significant byte
-first).
-Long lines are folded, with the point of folding indicated by displaying
-a backslash followed by a newline.
-The end of each line is marked with a
-.Ql $ .
-.Pp
-.It [2addr] Ns Em n
-Write the pattern space to the standard output if the default output has
-not been suppressed, and replace the pattern space with the next line of
-input.
-.Pp
-.It [2addr] Ns Em N
-Append the next line of input to the pattern space, using an embedded
-newline character to separate the appended material from the original
-contents.
-Note that the current line number changes.
-.Pp
-.It [2addr] Ns Em p
-Write the pattern space to standard output.
-.Pp
-.It [2addr] Ns Em P
-Write the pattern space, up to the first newline character to the
-standard output.
-.Pp
-.It [1addr] Ns Em q
-Branch to the end of the script and quit without starting a new cycle.
-.Pp
-.It [1addr] Ns Em r file
-Copy the contents of
-.Em file
-to the standard output immediately before the next attempt to read a
-line of input.
+.B /usr/5bin/s42/sed
+require that it is
+preceded by exactly one blank.
+Each
+.I wfile
+is created before processing begins.
+.TP 10
+(1)\|\fBa\e\fR
+.br
+.ns
+.TP 10
+.I text
+Append.
+Place
+.I text
+on the output before
+reading the next input line.
+.TP 10
+(2)\|\fBb \fIlabel\fR
+Branch to the `:' command bearing the
+.IR label .
 If
-.Em file
-cannot be read for any reason, it is silently ignored and no error
-condition is set.
-.Pp
-.It [2addr] Ns Em s Ns /re/replacement/flags
-Substitute the replacement string for the first instance of the regular
-expression in the pattern space.
-Any character other than backslash or newline can be used instead of
-a slash to delimit the RE and the replacement.
-Within the RE and the replacement, the RE delimiter itself can be used as
-a literal character if it is preceded by a backslash.
-.Pp
-An ampersand
-.Pq Ql &
-appearing in the replacement is replaced by the string matching the RE.
-The special meaning of
-.Ql &
-in this context can be suppressed by preceding it by a backslash.
-The string
-.Ql \e# ,
-where
-.Ql #
-is a digit, is replaced by the text matched
-by the corresponding backreference expression (see
-.Xr re_format 7 ) .
-.Pp
-A line can be split by substituting a newline character into it.
-To specify a newline character in the replacement string, precede it with
-a backslash.
-.Pp
-The value of
-.Em flags
-in the substitute function is zero or more of the following:
-.Bl -tag -width "XXXXXX" -offset indent
-.It 0 ... 9
-Make the substitution only for the N'th occurrence of the regular
-expression in the pattern space.
-.It g
-Make the substitution for all non-overlapping matches of the
-regular expression, not just the first one.
-.It p
-Write the pattern space to standard output if a replacement was made.
-If the replacement string is identical to that which it replaces, it
-is still considered to have been a replacement.
-.It w Em file
+.I label
+is empty, branch to the end of the script.
+.TP 10
+(2)\|\fBc\e\fR
+.br
+.ns
+.TP 10
+.I text
+Change.
+Delete the pattern space.
+With 0 or 1 address or at the end of a 2-address range, place
+.I text
+on the output.
+Start the next cycle.
+.TP 10
+(2)\|\fBd\fR
+Delete the pattern space.
+Start the next cycle.
+.TP 10
+(2)\|\fBD\fR
+Delete the initial segment of the 
+pattern space through the first newline.
+Start the next cycle.
+.TP 10
+(2)\|\fBg\fR
+Replace the contents of the pattern space
+by the contents of the hold space.
+.TP 10
+(2)\|\fBG\fR
+Append the contents of the hold space to the pattern space.
+.TP 10
+(2)\|\fBh\fR
+Replace the contents of the hold space by the contents of the pattern space.
+.TP 10
+(2)\|\fBH\fR
+Append the contents of the pattern space to the hold space.
+.TP 10
+(1)\|\fBi\e\fR
+.br
+.ns
+.TP 10
+.I text
+Insert.
+Place
+.I text
+on the standard output.
+.TP 10
+(2)\|\fBl\fR
+List the pattern space on the standard output in an
+unambiguous form.
+Non-printing ASCII characters are spelled
+in two- or three-digit ASCII,
+and long lines are folded.
+.TP 10
+(2)\|\fBn\fR
+Copy the pattern space to the standard output.
+Replace the pattern space with the next line of input.
+.TP 10
+(2)\|\fBN\fR
+Append the next line of input to the pattern space
+with an embedded newline.
+(The current line number changes.)
+.TP 10
+(2)\|\fBp\fR
+Print.
+Copy the pattern space to the standard output.
+.TP 10
+(2)\|\fBP\fR
+Copy the initial segment of the pattern space through
+the first newline to the standard output.
+.TP 10
+(1)\|\fBq\fR
+Quit.
+Branch to the end of the script.
+Do not start a new cycle.
+.TP 10
+(2)\|\fBr \fIrfile\fR
+Read the contents of
+.IR rfile .
+Place them on the output before reading
+the next input line.
+.TP 10
+(2)\|\fBs/\fIregular\ expression\fB/\fIreplacement\fB/\fIflags\fR
+Substitute the
+.I replacement
+string for instances of the
+.I regular expression
+in the pattern space.
+Any character may be used instead of `/'.
+For a fuller description see
+.IR ed (1).
+.I Flags
+is zero or more of
+.RS
+.TP
+.B g
+Global.
+Substitute for all nonoverlapping instances of the
+.I regular expression
+rather than just the
+first one.
+.TP
+.I n
+\fIn\fR=1\^\(en\^512.
+Substitute the \fIn\fRth occurrence of the
+.I regular expression
+only.
+.TP
+.B p
+Print the pattern space if a replacement was made.
+.TP
+\fBw \fIwfile\fB
+Write.
 Append the pattern space to
-.Em file
-if a replacement was made.
-If the replacement string is identical to that which it replaces, it
-is still considered to have been a replacement.
-.El
-.Pp
-.It [2addr] Ns Em t Ns [label]
-Branch to the
-.Ql \&:
-function bearing the label if any substitutions have been made since the
-most recent reading of an input line or execution of a
-.Sq t
-function.
-If no label is specified, branch to the end of the script.
-.Pp
-.It [2addr] Ns Em w file
-Append the pattern space to the
-.Em file .
-.Pp
-.It [2addr] Ns Em x
-Swap the contents of the pattern and hold spaces.
-.Pp
-.It [2addr] Ns Em y Ns /string1/string2/
+.I wfile
+if a replacement
+was made.
+.RE
+.TP 10
+(2)\|\fBt \fIlabel\fR
+Test.
+Branch to the `:' command bearing the
+.I label
+if any
+substitutions have been made since the most recent
+reading of an input line or execution of a `t'.
+If 
+.I label
+is empty, branch to the end of the script.
+.TP 10
+(2)\|\fBw \fIwfile\fR
+Write.
+Append the pattern space to
+.IR wfile .
+.TP 10
+(2)\|\fBx\fR
+Exchange the contents of the pattern and hold spaces.
+.TP 10
+(2)\|\fBy/\fIstring1\fB/\fIstring2\fB/\fR
+Transform.
 Replace all occurrences of characters in
-.Em string1
-in the pattern space with the corresponding characters from
-.Em string2 .
-Any character other than a backslash or newline can be used instead of
-a slash to delimit the strings.
-Within
-.Em string1
+.I string1
+with the corresponding character in
+.I string2.
+The lengths of
+.I
+string1
 and
-.Em string2 ,
-a backslash followed by any character other than a newline is that literal
-character, and a backslash followed by an
-.Sq n
-is replaced by a newline character.
-.Pp
-.Sm off
-.It Xo [2addr] Em !function No ,\ \&[2addr]
-.Em !function-list
-.Xc
-.Sm on
-Apply the function or function-list only to the lines that are
-.Em not
+.I string2
+must be equal.
+.TP 10
+(2)\fB! \fIfunction\fB
+Don't.
+Apply the
+.I function
+(or group, if
+.I function
+is `{') only to lines
+.I not
 selected by the address(es).
-.Pp
-.It [0addr] Ns Em \&: Ns label
-This function does nothing; it bears a label to which the
-.Sq b
+.TP 10
+(0)\|\fB: \fIlabel\fR
+This command does nothing; it bears a
+.I label
+for `b' and `t' commands to branch to.
+.TP 10
+(1)\|\fB=\fR
+Place the current line number on the standard output as a line.
+.TP 10
+(2)\|\fB{\fR
+Execute the following commands through a matching `}'
+only when the pattern space is selected.
+.TP 10
+(0)\|
+An empty command is ignored.
+.TP 10
+(0)\|\fB#\fP
+Ignore the entire line,
+except when the first two characters in the script are \fB#n\fP,
+which has the same effect as the \f2\-n\fP command line option.
+.SH "ENVIRONMENT VARIABLES"
+.TP
+.BR LANG ", " LC_ALL
+See
+.IR locale (7).
+.TP 
+.B LC_COLLATE
+Affects the collation order for range expressions,
+equivalence classes, and collation symbols
+in basic regular expressions.
+.TP
+.B LC_CTYPE 
+Determines the mapping of bytes to characters
+in both simple and basic regular expressions,
+for the
+.B l
 and
-.Sq t
-commands may branch.
-.Pp
-.It [1addr] Ns Em =
-Write the line number to the standard output followed by a newline character.
-.Pp
-.It [0addr]
-Empty lines are ignored.
-.Pp
-.It [0addr] Ns Em #
-The
-.Ql #
-and the remainder of the line are ignored (treated as a comment), with
-the single exception that if the first two characters in the file are
-.Ql #n ,
-the default output is suppressed.
-This is the same as specifying the
-.Fl n
-option on the command line.
-.El
-.Sh EXIT STATUS
-.Ex -std sed
-.Sh SEE ALSO
-.Xr awk 1 ,
-.Xr ed 1 ,
-.Xr grep 1 ,
-.Xr regex 3 ,
-.Xr setbuf 3 ,
-.Xr re_format 7
-.Sh STANDARDS
-The
-.Nm
-utility is compliant with the
-.St -p1003.1-2008
-specification.
-.Pp
-The flags
-.Op Fl aEru
-are extensions to that specification.
-.Pp
-The use of newlines to separate multiple commands on the command line
-is non-portable;
-the use of newlines to separate multiple commands within a command file
-.Pq Fl f Ar command_file
-is portable.
-.Sh HISTORY
-A
-.Nm
-command appeared in
-.At v7 .
-.Sh CAVEATS
-The use of semicolons to separate multiple commands
-is not permitted for the following commands:
-.Cm a , b , c ,
-.Cm i , r , t ,
-.Cm w , \&: ,
-and
-.Cm # .
+.B y
+commands,
+and the availability and composition of character classes
+in basic regular expressions.
+.SH SEE ALSO
+ed(1),
+grep(1),
+awk(1),
+locale(7)
