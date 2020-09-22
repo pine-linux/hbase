@@ -1,4 +1,3 @@
-
 include ../config.mk
 
 CPPFLAGS += -DDIFFH=\"$(PREFIX)/bin/diffh\"
@@ -22,5 +21,4 @@ postinst:
 
 postuninst:
 	@rm -f $(DESTDIR)$(PREFIX)/bin/diffh
-
 
