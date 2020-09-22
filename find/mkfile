@@ -1,8 +1,0 @@
-BIN = find
-OBJ = find.o
-LOCAL_CFLAGS = -DGETDIR -DSU3
-INSTALL_BIN = find
-INSTALL_MAN1 = find.1
-DEPS = libcommon
-
-<$mkbuild/mk.default

@@ -1,9 +1,0 @@
-BIN = cp
-OBJ = cp.o
-LOCAL_CFLAGS = -DSUS
-INSTALL_BIN = cp
-INSTALL_MAN1 = cp.1
-DEPS = libcommon
-
-<$mkbuild/mk.default
-
