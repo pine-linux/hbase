@@ -6,7 +6,8 @@ SUBDIRS =\
 	hd\
 	bc\
 	pgrep\
-	patch
+	patch\
+	diff
 
 include dir.mk
 

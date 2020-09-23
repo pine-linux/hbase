@@ -1,473 +1,411 @@
+/*	$OpenBSD: diff.c,v 1.57 2010/07/16 23:27:58 ray Exp $	*/
+
 /*
- * This code contains changes by
- * Gunnar Ritter, Freiburg i. Br., Germany, March 2003. All rights reserved.
+ * Copyright (c) 2003 Todd C. Miller <Todd.Miller@courtesan.com>
  *
- * Conditions 1, 2, and 4 and the no-warranty notice below apply
- * to these changes.
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
  *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *
- * Copyright (c) 1991
- * 	The Regents of the University of California.  All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- * 	This product includes software developed by the University of
- * 	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
- *    may be used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
- * SUCH DAMAGE.
- *
- *
- * Copyright(C) Caldera International Inc. 2001-2002. All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *   Redistributions of source code and documentation must retain the
- *    above copyright notice, this list of conditions and the following
- *    disclaimer.
- *   Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- *   All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *      This product includes software developed or owned by Caldera
- *      International, Inc.
- *   Neither the name of Caldera International, Inc. nor the names of
- *    other contributors may be used to endorse or promote products
- *    derived from this software without specific prior written permission.
- *
- * USE OF THE SOFTWARE PROVIDED FOR UNDER THIS LICENSE BY CALDERA
- * INTERNATIONAL, INC. AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR
- * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL CALDERA INTERNATIONAL, INC. BE
- * LIABLE FOR ANY DIRECT, INDIRECT INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
- * BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
- * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
- * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
- * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Sponsored in part by the Defense Advanced Research Projects
+ * Agency (DARPA) and Air Force Research Laboratory, Air Force
+ * Materiel Command, USAF, under agreement number F39502-99-1-0512.
  */
 
-/*	Sccsid @(#)diff.c	1.24 (gritter) 3/27/05>	*/
-/*	from 4.3BSD diff.c 4.6 4/3/86	*/
+#include <sys/param.h>
+#include <sys/stat.h>
+
+#include <ctype.h>
+#include <errno.h>
+#include <getopt.h>
+#include <signal.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <stdarg.h>
+#include <string.h>
+#include <unistd.h>
 
 #include "diff.h"
-#include <unistd.h>
-#include <locale.h>
-#include <iblok.h>
-/*
- * diff - driver and subroutines
- */
+#include "util.h"
+#include "xmalloc.h"
 
-const char	diff[] = "diff";
-const char	diffh[] = DIFFH;
-const char	pr[] = "pr";
-const char	*progname;
-const char	*argv0;
+int	 lflag, Nflag, Pflag, rflag, sflag, Tflag;
+int	 diff_format, diff_context, status;
+char	*start, *ifdefname, *diffargs, *label[2], *ignore_pats;
+struct stat stb1, stb2;
+struct excludes *excludes_list;
+regex_t	 ignore_re;
 
-static void	usage(void);
-static void	xadd(const char *);
-static void	Xadd(const char *);
+#define	OPTIONS	"0123456789abC:cdD:efhI:iL:lnNPpqrS:sTtU:uwX:x:"
+static struct option longopts[] = {
+	{ "text",			no_argument,		0,	'a' },
+	{ "ignore-space-change",	no_argument,		0,	'b' },
+	{ "context",			optional_argument,	0,	'C' },
+	{ "ifdef",			required_argument,	0,	'D' },
+	{ "minimal",			no_argument,		0,	'd' },
+	{ "ed",				no_argument,		0,	'e' },
+	{ "forward-ed",			no_argument,		0,	'f' },
+	{ "ignore-matching-lines",	required_argument,	0,	'I' },
+	{ "ignore-case",		no_argument,		0,	'i' },
+	{ "paginate",			no_argument,		0,	'l' },
+	{ "label",			required_argument,	0,	'L' },
+	{ "new-file",			no_argument,		0,	'N' },
+	{ "rcs",			no_argument,		0,	'n' },
+	{ "unidirectional-new-file",	no_argument,		0,	'P' },
+	{ "show-c-function",		no_argument,		0,	'p' },
+	{ "brief",			no_argument,		0,	'q' },
+	{ "recursive",			no_argument,		0,	'r' },
+	{ "report-identical-files",	no_argument,		0,	's' },
+	{ "starting-file",		required_argument,	0,	'S' },
+	{ "expand-tabs",		no_argument,		0,	't' },
+	{ "initial-tab",		no_argument,		0,	'T' },
+	{ "unified",			optional_argument,	0,	'U' },
+	{ "ignore-all-space",		no_argument,		0,	'w' },
+	{ "exclude",			required_argument,	0,	'x' },
+	{ "exclude-from",		required_argument,	0,	'X' },
+	{ NULL,				0,			0,	'\0'}
+};
+
+void usage(void);
+void push_excludes(char *);
+void push_ignore_pats(char *);
+void read_excludes_file(char *file);
+void set_argstr(char **, char **);
 
 int
 main(int argc, char **argv)
 {
-	int	i, invalid = 0;
+	char *ep, **oargv;
+	long  l;
+	int   ch, dflags, lastch, gotstdin, prevoptind, newarg;
 
-	progname = basename(argv[0]);
-	setlocale(LC_CTYPE, "");
-	mb_cur_max = MB_CUR_MAX;
-	if (getenv("SYSV3") != NULL)
-		sysv3 = 1;
-	ifdef1 = "FILE1"; ifdef2 = "FILE2";
-	status = 2;
-	argv0 = argv[0];
-	diffargv = argv;
-	while ((i = getopt(argc, argv, ":D:efnbBwitcC:uU:hS:rslNx:a12pX:"))
-			!= EOF) {
-		switch (i) {
-#ifdef notdef
-		case 'I':
-			opt = D_IFDEF;
-			wantelses = 0;
+	oargv = argv;
+	gotstdin = 0;
+	dflags = 0;
+	lastch = '\0';
+	prevoptind = 1;
+	newarg = 1;
+	while ((ch = getopt_long(argc, argv, OPTIONS, longopts, NULL)) != -1) {
+		switch (ch) {
+		case '0': case '1': case '2': case '3': case '4':
+		case '5': case '6': case '7': case '8': case '9':
+			if (newarg)
+				usage();	/* disallow -[0-9]+ */
+			else if (lastch == 'c' || lastch == 'u')
+				diff_context = 0;
+			else if (!isdigit(lastch) || diff_context > INT_MAX / 10)
+				usage();
+			diff_context = (diff_context * 10) + (ch - '0');
 			break;
-		case 'E':
-			opt = D_IFDEF;
-			wantelses = 1;
-			break;
-		case '1':
-			opt = D_IFDEF;
-			ifdef1 = optarg;
-			break;
-#endif
-		case 'D':
-			/* -Dfoo = -E -1 -2foo */
-			wantelses = 1;
-			ifdef1 = "";
-			/* fall through */
-#ifdef notdef
-		case '2':
-#endif
-			opt = D_IFDEF;
-			ifdef2 = optarg;
-			break;
-		case 'e':
-			opt = D_EDIT;
-			break;
-		case 'f':
-			opt = D_REVERSE;
-			break;
-		case 'n':
-			opt = D_NREVERSE;
+		case 'a':
+			dflags |= D_FORCEASCII;
 			break;
 		case 'b':
-			bflag = 1;
+			dflags |= D_FOLDBLANKS;
 			break;
-		case 'B':
-			Bflag = 1;
+		case 'C':
+		case 'c':
+			diff_format = D_CONTEXT;
+			if (optarg != NULL) {
+				l = strtol(optarg, &ep, 10);
+				if (*ep != '\0' || l < 0 || l >= INT_MAX)
+					usage();
+				diff_context = (int)l;
+			} else
+				diff_context = 3;
 			break;
-		case 'w':
-			wflag = 1;
+		case 'd':
+			dflags |= D_MINIMAL;
+			break;
+		case 'D':
+			diff_format = D_IFDEF;
+			ifdefname = optarg;
+			break;
+		case 'e':
+			diff_format = D_EDIT;
+			break;
+		case 'f':
+			diff_format = D_REVERSE;
+			break;
+		case 'h':
+			/* silently ignore for backwards compatibility */
+			break;
+		case 'I':
+			push_ignore_pats(optarg);
 			break;
 		case 'i':
-			iflag = 1;
+			dflags |= D_IGNORECASE;
 			break;
-		case 't':
-			tflag = 1;
+		case 'L':
+			if (label[0] == NULL)
+				label[0] = optarg;
+			else if (label[1] == NULL)
+				label[1] = optarg;
+			else
+				usage();
 			break;
-		case 'c':
-			opt = D_CONTEXT;
-			context = 3;
+		case 'l':
+			lflag = 1;
+			signal(SIGPIPE, SIG_IGN);
 			break;
-		case 'C': {
-			char	*x;
-
-			opt = D_CONTEXT;
-			context = strtol(optarg, &x, 10);
-			if (*x != '\0' || *optarg == '+' || *optarg == '-') {
-				fprintf(stderr, "%s: use -C num\n", progname);
-				done();
-			}
+		case 'N':
+			Nflag = 1;
 			break;
-		}
-		case 'u':
-			opt = D_UNIFIED;
-			context = 3;
+		case 'n':
+			diff_format = D_NREVERSE;
 			break;
-		case 'U': {
-			char	*x;
-
-			opt = D_UNIFIED;
-			context = strtol(optarg, &x, 10);
-			if (*x != '\0' || *optarg == '+' || *optarg == '-') {
-				fprintf(stderr, "%s: use -U num\n", progname);
-				done();
-			}
+		case 'p':
+			dflags |= D_PROTOTYPE;
 			break;
-		}
-		case 'h':
-			hflag++;
+		case 'P':
+			Pflag = 1;
+			break;
+		case 'r':
+			rflag = 1;
+			break;
+		case 'q':
+			diff_format = D_BRIEF;
 			break;
 		case 'S':
 			start = optarg;
 			break;
-		case 'r':
-			rflag++;
-			break;
 		case 's':
-			sflag++;
+			sflag = 1;
 			break;
-		case 'l':
-			lflag++;
+		case 'T':
+			Tflag = 1;
 			break;
-		case 'N':
-			Nflag |= 3;
+		case 't':
+			dflags |= D_EXPANDTABS;
 			break;
-		case '1':
-			Nflag |= 1;
+		case 'U':
+		case 'u':
+			diff_format = D_UNIFIED;
+			if (optarg != NULL) {
+				l = strtol(optarg, &ep, 10);
+				if (*ep != '\0' || l < 0 || l >= INT_MAX)
+					usage();
+				diff_context = (int)l;
+			} else
+				diff_context = 3;
 			break;
-		case '2':
-			Nflag |= 2;
-			break;
-		case 'x':
-			xadd(optarg);
-			break;
-		case 'a':
-			aflag++;
-			break;
-		case 'p':
-			pflag++;
+		case 'w':
+			dflags |= D_IGNOREBLANKS;
 			break;
 		case 'X':
-			Xadd(optarg);
+			read_excludes_file(optarg);
+			break;
+		case 'x':
+			push_excludes(optarg);
 			break;
 		default:
-			if (invalid == 0 && !sysv3)
-				invalid = optopt;
+			usage();
+			break;
 		}
+		lastch = ch;
+		newarg = optind != prevoptind;
+		prevoptind = optind;
 	}
-	argv += optind, argc -= optind;
-	if (argc != 2) {
-		fprintf(stderr, sysv3 ? "%s: arg count\n" :
-				"%s: two filename arguments required\n",
-				progname);
-		done();
-	}
-	file1 = argv[0];
-	file2 = argv[1];
-	if (invalid) {
-		fprintf(stderr, "%s: invalid option -%c\n", progname, invalid);
+	argc -= optind;
+	argv += optind;
+
+	/*
+	 * Do sanity checks, fill in stb1 and stb2 and call the appropriate
+	 * driver routine.  Both drivers use the contents of stb1 and stb2.
+	 */
+	if (argc != 2)
 		usage();
-	}
-	if (pflag) {
-		if (opt == D_UNIFIED || opt == D_CONTEXT)
-			/*EMPTY*/;
-		else if (opt == 0) {
-			opt = D_CONTEXT;
-			context = 3;
-		} else {
-			fprintf(stderr,
-				"%s: -p doesn't support -e, -f, -n, or -I\n",
-		    		progname);
-			done();
+	if (ignore_pats != NULL) {
+		char buf[BUFSIZ];
+		int error;
+
+		if ((error = regcomp(&ignore_re, ignore_pats,
+				     REG_NEWLINE | REG_EXTENDED)) != 0) {
+			regerror(error, &ignore_re, buf, sizeof(buf));
+			if (*ignore_pats != '\0')
+				errx(2, "%s: %s", ignore_pats, buf);
+			else
+				errx(2, "%s", buf);
 		}
 	}
-	if (hflag && opt) {
-		fprintf(stderr,
-		    "%s: -h doesn't support -e, -f, -n, -c, -u, or -I\n",
-		    	progname);
-		done();
+	if (strcmp(argv[0], "-") == 0) {
+		fstat(STDIN_FILENO, &stb1);
+		gotstdin = 1;
+	} else if (stat(argv[0], &stb1) != 0)
+		err(2, "%s", argv[0]);
+	if (strcmp(argv[1], "-") == 0) {
+		fstat(STDIN_FILENO, &stb2);
+		gotstdin = 1;
+	} else if (stat(argv[1], &stb2) != 0)
+		err(2, "%s", argv[1]);
+	if (gotstdin && (S_ISDIR(stb1.st_mode) || S_ISDIR(stb2.st_mode)))
+		errx(2, "can't compare - to a directory");
+	set_argstr(oargv, argv);
+	if (S_ISDIR(stb1.st_mode) && S_ISDIR(stb2.st_mode)) {
+		if (diff_format == D_IFDEF)
+			errx(2, "-D option not supported with directories");
+		diffdir(argv[0], argv[1], dflags);
+	} else {
+		if (S_ISDIR(stb1.st_mode)) {
+			argv[0] = splice(argv[0], argv[1]);
+			if (stat(argv[0], &stb1) < 0)
+				err(2, "%s", argv[0]);
+		}
+		if (S_ISDIR(stb2.st_mode)) {
+			argv[1] = splice(argv[1], argv[0]);
+			if (stat(argv[1], &stb2) < 0)
+				err(2, "%s", argv[1]);
+		}
+		print_status(diffreg(argv[0], argv[1], dflags), argv[0], argv[1],
+		    "");
 	}
-	diffany(argv);
-	/*NOTREACHED*/
-	return 0;
+	exit(status);
 }
 
 void
-diffany(char **argv)
+set_argstr(char **av, char **ave)
 {
-	if (!strcmp(file1, "-"))
-		stb1.st_mode = S_IFREG;
-	else if (stat(file1, &stb1) < 0) {
-		if (sysv3)
-			stb1.st_mode = S_IFREG;
-		else {
-			fprintf(stderr, "%s: %s: %s\n", progname, file1,
-					strerror(errno));
-			done();
+	size_t argsize;
+	char **ap;
+
+	argsize = 4 + *ave - *av + 1;
+	diffargs = xmalloc(argsize);
+	strlcpy(diffargs, "diff", argsize);
+	for (ap = av + 1; ap < ave; ap++) {
+		if (strcmp(*ap, "--") != 0) {
+			strlcat(diffargs, " ", argsize);
+			strlcat(diffargs, *ap, argsize);
 		}
 	}
-	if (!strcmp(file2, "-"))
-		stb2.st_mode = S_IFREG;
-	else if (stat(file2, &stb2) < 0) {
-		if (sysv3)
-			stb2.st_mode = S_IFREG;
-		else {
-			fprintf(stderr, "%s: %s: %s\n", progname, file2,
-					strerror(errno));
-			done();
-		}
-	}
-	if ((stb1.st_mode & S_IFMT) == S_IFDIR &&
-	    (stb2.st_mode & S_IFMT) == S_IFDIR) {
-		diffdir(argv);
-	} else
-		diffreg();
-	done();
 }
 
-static void
+/*
+ * Read in an excludes file and push each line.
+ */
+void
+read_excludes_file(char *file)
+{
+	FILE *fp;
+	char *buf, *pattern;
+	size_t len;
+
+	if (strcmp(file, "-") == 0)
+		fp = stdin;
+	else if ((fp = fopen(file, "r")) == NULL)
+		err(2, "%s", file);
+	while ((buf = fgetln(fp, &len)) != NULL) {
+		if (buf[len - 1] == '\n')
+			len--;
+		pattern = xmalloc(len + 1);
+		memcpy(pattern, buf, len);
+		pattern[len] = '\0';
+		push_excludes(pattern);
+	}
+	if (strcmp(file, "-") != 0)
+		fclose(fp);
+}
+
+/*
+ * Push a pattern onto the excludes list.
+ */
+void
+push_excludes(char *pattern)
+{
+	struct excludes *entry;
+
+	entry = xmalloc(sizeof(*entry));
+	entry->pattern = pattern;
+	entry->next = excludes_list;
+	excludes_list = entry;
+}
+
+void
+push_ignore_pats(char *pattern)
+{
+	size_t len;
+
+	if (ignore_pats == NULL)
+		ignore_pats = xstrdup(pattern);
+	else {
+		/* old + "|" + new + NUL */
+		len = strlen(ignore_pats) + strlen(pattern) + 2;
+		ignore_pats = xrealloc(ignore_pats, 1, len);
+		strlcat(ignore_pats, "|", len);
+		strlcat(ignore_pats, pattern, len);
+	}
+}
+
+void
+print_only(const char *path, size_t dirlen, const char *entry)
+{
+	if (dirlen > 1)
+		dirlen--;
+	printf("Only in %.*s: %s\n", (int)dirlen, path, entry);
+}
+
+void
+print_status(int val, char *path1, char *path2, char *entry)
+{
+	switch (val) {
+	case D_ONLY:
+		print_only(path1, strlen(path1), entry);
+		break;
+	case D_COMMON:
+		printf("Common subdirectories: %s%s and %s%s\n",
+		    path1, entry, path2, entry);
+		break;
+	case D_BINARY:
+		printf("Binary files %s%s and %s%s differ\n",
+		    path1, entry, path2, entry);
+		break;
+	case D_DIFFER:
+		if (diff_format == D_BRIEF)
+			printf("Files %s%s and %s%s differ\n",
+			    path1, entry, path2, entry);
+		break;
+	case D_SAME:
+		if (sflag)
+			printf("Files %s%s and %s%s are identical\n",
+			    path1, entry, path2, entry);
+		break;
+	case D_MISMATCH1:
+		printf("File %s%s is a directory while file %s%s is a regular file\n",
+		    path1, entry, path2, entry);
+		break;
+	case D_MISMATCH2:
+		printf("File %s%s is a regular file while file %s%s is a directory\n",
+		    path1, entry, path2, entry);
+		break;
+	case D_SKIPPED1:
+		printf("File %s%s is not a regular file or directory and was skipped\n",
+		    path1, entry);
+		break;
+	case D_SKIPPED2:
+		printf("File %s%s is not a regular file or directory and was skipped\n",
+		    path2, entry);
+		break;
+	}
+}
+
+void
 usage(void)
 {
-	fprintf(stderr, "\
-usage: %s [ -bcefhilnrstw -C num -D string -S name ] file1 file2\n",
-		progname);
-	done();
-}
+	(void)fprintf(stderr,
+	    "usage: diff [-abdilpTtw] [-c | -e | -f | -n | -q | -u] [-I pattern] [-L label]\n"
+	    "            file1 file2\n"
+	    "       diff [-abdilpTtw] [-I pattern] [-L label] -C number file1 file2\n"
+	    "       diff [-abdiltw] [-I pattern] -D string file1 file2\n"
+	    "       diff [-abdilpTtw] [-I pattern] [-L label] -U number file1 file2\n"
+	    "       diff [-abdilNPprsTtw] [-c | -e | -f | -n | -q | -u] [-I pattern]\n"
+	    "            [-L label] [-S name] [-X file] [-x pattern] dir1 dir2\n");
 
-int
-min(int a,int b)
-{
-
-	return (a < b ? a : b);
-}
-
-int
-max(int a,int b)
-{
-
-	return (a > b ? a : b);
-}
-
-void
-done(void)
-{
-	if (tempfile1) {
-		unlink(tempfile1);
-		tempfile1 = NULL;
-	}
-	if (tempfile2) {
-		unlink(tempfile2);
-		tempfile2 = NULL;
-	}
-	if (recdepth == 0)
-		exit(status);
-	else
-		longjmp(recenv, 1);
-}
-
-static void	noroom(void);
-
-void *
-dalloc(size_t n)
-{
-	struct stackblk *sp;
-
-	if ((sp = malloc(n + sizeof *sp)) != NULL) {
-		sp->s_prev = NULL;
-		sp->s_next = curstack;
-		if (curstack)
-			curstack->s_prev = sp;
-		curstack = sp;
-		return (char *)sp + sizeof *sp;
-	} else
-		return NULL;
-}
-
-void *
-talloc(size_t n)
-{
-	register void *p;
-
-	if ((p = dalloc(n)) == NULL)
-		noroom();
-	return p;
-}
-
-void *
-ralloc(void *p,size_t n)
-{
-	struct stackblk	*sp, *sq;
-
-	if (p == NULL)
-		return talloc(n);
-	sp = (struct stackblk *)((char *)p - sizeof *sp);
-	if ((sq = realloc(sp, n + sizeof *sp)) == NULL)
-		noroom();
-	if (sq->s_prev)
-		sq->s_prev->s_next = sq;
-	if (sq->s_next)
-		sq->s_next->s_prev = sq;
-	if (curstack == sp)
-		curstack = sq;
-	return (char *)sq + sizeof *sq;
-}
-
-void
-tfree(void *p)
-{
-	struct stackblk	*sp;
-
-	if (p == NULL)
-		return;
-	sp = (struct stackblk *)((char *)p - sizeof *sp);
-	if (sp->s_prev)
-		sp->s_prev->s_next = sp->s_next;
-	if (sp->s_next)
-		sp->s_next->s_prev = sp->s_prev;
-	if (sp == curstack)
-		curstack = sp->s_next;
-	free(sp);
-}
-
-void
-purgestack(void)
-{
-	struct stackblk *sp = curstack, *sq = NULL;
-
-	do {
-		free(sq);
-		sq = sp;
-		if (sp)
-			sp = sp->s_next;
-	} while (sq);
-}
-
-static void
-noroom(void)
-{
-	oomsg(": files too big, try -h\n");
-	status = 2;
-	done();
-}
-
-static void
-xadd(const char *cp)
-{
-	struct xclusion	*xp;
-
-	xp = talloc(sizeof *xp);
-	xp->x_pat = cp;
-	xp->x_nxt = xflag;
-	xflag = xp;
-}
-
-static void
-Xadd(const char *name)
-{
-	struct iblok	*ip;
-	char	*line = NULL;
-	size_t	size = 0, len;
-
-	if (name[0] == '-' && name[1] == '\0')
-		ip = ib_alloc(0, 0);
-	else
-		ip = ib_open(name, 0);
-	if (ip == NULL) {
-		fprintf(stderr, "%s: -X %s: %s\n", progname, name,
-				strerror(errno));
-		done();
-	}
-	while ((len = ib_getlin(ip, &line, &size, realloc)) != 0) {
-		if (line[len-1] == '\n')
-			line[--len] = '\0';
-		xadd(line);
-		line = NULL;
-		size = 0;
-	}
-	free(line);
-	if (ip->ib_fd)
-		ib_close(ip);
-	else
-		ib_free(ip);
-}
-
-void
-oomsg(const char *s)
-{
-	write(2, progname, strlen(progname));
-	write(2, s, strlen(s));
+	exit(2);
 }
